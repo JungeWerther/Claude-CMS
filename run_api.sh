@@ -11,5 +11,14 @@ export PATH="$HOME/.local/bin:$PATH"
 # Add current directory to PYTHONPATH so Python can find lib and services modules
 export PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH"
 
+# PID file location
+PID_FILE="$SCRIPT_DIR/uvicorn.pid"
+LOG_FILE="$SCRIPT_DIR/uvicorn.log"
+
 # Run uvicorn using python -m to ensure PYTHONPATH is respected
-uv run python -m uvicorn api:app --host 0.0.0.0 --port 8000 --reload
+nohup uv run python -m uvicorn api:app --host 0.0.0.0 --port 8000 --reload > "$LOG_FILE" 2>&1 &
+echo $! > "$PID_FILE"
+
+echo "FastAPI server started in background (PID: $(cat "$PID_FILE"))"
+echo "Logs: $LOG_FILE"
+echo "To stop: kill \$(cat $PID_FILE)"
