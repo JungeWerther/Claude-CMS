@@ -3,9 +3,15 @@ Main CLI entry point.
 """
 
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import click
+from dotenv import load_dotenv
 from sqlalchemy import func, select
+
+# Load environment variables from .env file
+env_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=env_path)
 
 from contacts import contacts
 from lib.database import get_db_session, init_db

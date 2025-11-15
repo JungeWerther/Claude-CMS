@@ -15,10 +15,26 @@ export PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH"
 PID_FILE="$SCRIPT_DIR/uvicorn.pid"
 LOG_FILE="$SCRIPT_DIR/uvicorn.log"
 
+# Kill any currently running service if it exists
+if [ -f "$PID_FILE" ]; then
+    OLD_PID=$(cat "$PID_FILE")
+    if ps -p "$OLD_PID" > /dev/null 2>&1; then
+        echo "Stopping existing server (PID: $OLD_PID)..."
+        kill "$OLD_PID"
+        sleep 1
+        # Force kill if still running
+        if ps -p "$OLD_PID" > /dev/null 2>&1; then
+            kill -9 "$OLD_PID"
+        fi
+    fi
+    rm -f "$PID_FILE"
+fi
+
+
 # Run uvicorn using python -m to ensure PYTHONPATH is respected
 nohup uv run python -m uvicorn api:app --host 0.0.0.0 --port 8000 --reload > "$LOG_FILE" 2>&1 &
 echo $! > "$PID_FILE"
 
-echo "FastAPI server started in background (PID: $(cat "$PID_FILE"))"
+echo "FastAPI server started in background on port 8000 (PID: $(cat "$PID_FILE"))"
 echo "Logs: $LOG_FILE"
 echo "To stop: kill \$(cat $PID_FILE)"
