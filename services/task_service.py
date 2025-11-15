@@ -10,10 +10,11 @@ from sqlalchemy import select
 from lib.database import get_db_session
 from models.contact_note import ContactDB, OrganizationDB
 from models.task import TaskDB
+from services.base_service import is_remote_mode
 
 
 class TaskService:
-    """Service for task-related operations."""
+    """Service for task-related operations. Supports both direct and HTTP client mode."""
 
     @staticmethod
     def add_task(
@@ -30,6 +31,14 @@ class TaskService:
         Returns:
             Tuple of (task, error_message). If error occurs, task is None.
         """
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import TaskHTTP
+
+            return TaskHTTP.add_task(
+                title, due_date, importance, description, contact_ids, organization_ids
+            )
+
         # Validate importance
         if importance < 0 or importance > 10:
             return None, "Importance must be between 0 and 10"
@@ -72,6 +81,14 @@ class TaskService:
         organization_id: Optional[int] = None,
     ) -> List[TaskDB]:
         """List tasks with optional filtering."""
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import TaskHTTP
+
+            return TaskHTTP.list_tasks(
+                limit, show_completed, contact_id, organization_id
+            )
+
         with get_db_session() as session:
             stmt = select(TaskDB).order_by(TaskDB.due_date.asc())
 
@@ -98,6 +115,12 @@ class TaskService:
     @staticmethod
     def get_urgent_tasks(days: int = 7, sort_by: str = "urgency") -> List[TaskDB]:
         """Get tasks due within a certain timeframe."""
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import TaskHTTP
+
+            return TaskHTTP.get_urgent_tasks(days, sort_by)
+
         with get_db_session() as session:
             now = datetime.utcnow()
             threshold = now + timedelta(days=days)
@@ -122,6 +145,12 @@ class TaskService:
     @staticmethod
     def get_task(task_id: int) -> Optional[TaskDB]:
         """Get a single task by ID."""
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import TaskHTTP
+
+            return TaskHTTP.get_task(task_id)
+
         with get_db_session() as session:
             stmt = select(TaskDB).where(TaskDB.id == task_id)
             task = session.execute(stmt).scalar_one_or_none()
@@ -134,6 +163,12 @@ class TaskService:
     @staticmethod
     def complete_task(task_id: int) -> Tuple[Optional[TaskDB], Optional[str]]:
         """Mark a task as completed."""
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import TaskHTTP
+
+            return TaskHTTP.complete_task(task_id)
+
         with get_db_session() as session:
             stmt = select(TaskDB).where(TaskDB.id == task_id)
             task = session.execute(stmt).scalar_one_or_none()
@@ -153,6 +188,12 @@ class TaskService:
     @staticmethod
     def uncomplete_task(task_id: int) -> Tuple[Optional[TaskDB], Optional[str]]:
         """Mark a task as incomplete."""
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import TaskHTTP
+
+            return TaskHTTP.uncomplete_task(task_id)
+
         with get_db_session() as session:
             stmt = select(TaskDB).where(TaskDB.id == task_id)
             task = session.execute(stmt).scalar_one_or_none()
@@ -183,6 +224,18 @@ class TaskService:
         Returns:
             Tuple of (changes_dict, error_message)
         """
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import TaskHTTP
+
+            return TaskHTTP.tag_task(
+                task_id,
+                add_contact_ids,
+                add_org_ids,
+                remove_contact_ids,
+                remove_org_ids,
+            )
+
         with get_db_session() as session:
             stmt = select(TaskDB).where(TaskDB.id == task_id)
             task = session.execute(stmt).scalar_one_or_none()

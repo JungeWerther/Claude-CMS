@@ -9,6 +9,7 @@ from sqlalchemy import select
 from lib.database import get_db_session
 from models.contact_note import ContactDB, NoteDB, OrganizationDB
 from models.task import TaskDB
+from services.base_service import is_remote_mode
 
 
 class NoteService:
@@ -28,6 +29,14 @@ class NoteService:
         Returns:
             Tuple of (note, error_message). If error occurs, note is None.
         """
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import NoteHTTP
+
+            return NoteHTTP.add_note(
+                title, content, contact_ids, organization_ids, task_ids
+            )
+
         with get_db_session() as session:
             # Create new note
             note = NoteDB(title=title, content=content)
@@ -100,6 +109,12 @@ class NoteService:
         Returns:
             Tuple of (notes_list, error_message)
         """
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import NoteHTTP
+
+            return NoteHTTP.list_notes(limit, contact_id, organization_id)
+
         with get_db_session() as session:
             if contact_id:
                 stmt = select(ContactDB).where(ContactDB.id == contact_id)
@@ -132,6 +147,12 @@ class NoteService:
     @staticmethod
     def get_note(note_id: int) -> Optional[NoteDB]:
         """Get a single note by ID."""
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import NoteHTTP
+
+            return NoteHTTP.get_note(note_id)
+
         with get_db_session() as session:
             stmt = select(NoteDB).where(NoteDB.id == note_id)
             note = session.execute(stmt).scalar_one_or_none()
@@ -157,6 +178,20 @@ class NoteService:
         Returns:
             Tuple of (changes_dict, error_message)
         """
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import NoteHTTP
+
+            return NoteHTTP.tag_note(
+                note_id,
+                add_contact_ids,
+                remove_contact_ids,
+                add_org_ids,
+                remove_org_ids,
+                add_task_ids,
+                remove_task_ids,
+            )
+
         with get_db_session() as session:
             stmt = select(NoteDB).where(NoteDB.id == note_id)
             note = session.execute(stmt).scalar_one_or_none()

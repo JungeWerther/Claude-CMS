@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 
 from lib.database import get_db_session
 from models.contact_note import NoteDB, OrganizationDB
+from services.base_service import is_remote_mode
 
 
 class OrganizationService:
@@ -21,6 +22,12 @@ class OrganizationService:
         Returns:
             Tuple of (organization, error_message). If error occurs, organization is None.
         """
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import OrganizationHTTP
+
+            return OrganizationHTTP.add_organization(name)
+
         with get_db_session() as session:
             # Check if organization already exists
             stmt = select(OrganizationDB).where(OrganizationDB.name == name)
@@ -40,6 +47,12 @@ class OrganizationService:
     @staticmethod
     def list_organizations() -> List[OrganizationDB]:
         """List all organizations ordered by name."""
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import OrganizationHTTP
+
+            return OrganizationHTTP.list_organizations()
+
         with get_db_session() as session:
             stmt = select(OrganizationDB).order_by(OrganizationDB.name)
             return session.execute(stmt).scalars().all()
@@ -52,6 +65,12 @@ class OrganizationService:
         Returns:
             List of tuples (organization, note_count)
         """
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import OrganizationHTTP
+
+            return OrganizationHTTP.get_top_organizations(limit)
+
         with get_db_session() as session:
             stmt = (
                 select(OrganizationDB, func.count(NoteDB.id).label("note_count"))

@@ -8,10 +8,11 @@ from sqlalchemy import func, select
 
 from lib.database import get_db_session
 from models.contact_note import ContactDB, NoteDB
+from services.base_service import is_remote_mode
 
 
 class ContactService:
-    """Service for contact-related operations."""
+    """Service for contact-related operations. Supports both direct and HTTP client mode."""
 
     @staticmethod
     def add_contact(
@@ -23,6 +24,12 @@ class ContactService:
         Returns:
             Tuple of (contact, error_message). If error occurs, contact is None.
         """
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import ContactHTTP
+
+            return ContactHTTP.add_contact(first_name, last_name)
+
         with get_db_session() as session:
             # Check if contact already exists
             stmt = select(ContactDB).where(
@@ -48,6 +55,12 @@ class ContactService:
     @staticmethod
     def list_contacts() -> List[ContactDB]:
         """List all contacts ordered by last name."""
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import ContactHTTP
+
+            return ContactHTTP.list_contacts()
+
         with get_db_session() as session:
             stmt = select(ContactDB).order_by(ContactDB.last_name)
             return session.execute(stmt).scalars().all()
@@ -60,6 +73,12 @@ class ContactService:
         Returns:
             List of tuples (contact, note_count)
         """
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import ContactHTTP
+
+            return ContactHTTP.get_top_contacts(limit)
+
         with get_db_session() as session:
             stmt = (
                 select(ContactDB, func.count(NoteDB.id).label("note_count"))
@@ -81,6 +100,12 @@ class ContactService:
         Returns:
             Tuple of (added_names, skipped_names)
         """
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import ContactHTTP
+
+            return ContactHTTP.bulk_add_contacts(names)
+
         with get_db_session() as session:
             added = []
             skipped = []
@@ -110,6 +135,12 @@ class ContactService:
     @staticmethod
     def search_contacts(query: str) -> List[ContactDB]:
         """Search contacts by first name or last name."""
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import ContactHTTP
+
+            return ContactHTTP.search_contacts(query)
+
         with get_db_session() as session:
             query_lower = query.lower()
 
@@ -134,6 +165,12 @@ class ContactService:
         Returns:
             Tuple of (contact, notes) or None if contact not found
         """
+        # If in remote mode, use HTTP client
+        if is_remote_mode():
+            from services.http_client import ContactHTTP
+
+            return ContactHTTP.get_contact_with_notes(contact_id, note_limit)
+
         with get_db_session() as session:
             stmt = select(ContactDB).where(ContactDB.id == contact_id)
             contact = session.execute(stmt).scalar_one_or_none()
