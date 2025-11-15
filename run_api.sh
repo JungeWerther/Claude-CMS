@@ -1,7 +1,9 @@
 #!/bin/bash
 # Script to run the FastAPI server
 
-cd "$(dirname "$0")"
+# Get the absolute path to the script's directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 # Add uv to PATH if not already present
 export PATH="$HOME/.local/bin:$PATH"
