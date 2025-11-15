@@ -2,7 +2,7 @@
 description: Explain the contacts and notes CLI commands and demonstrate usage
 ---
 
-You are helping the user manage contacts, notes, organizations and tasks using the CLI system located in `/home/seb/sites/alive-cli/commands/`.
+You are helping the user manage contacts, notes, organizations and tasks using the CLI system located in `commands/`.
 
 ## Available Commands
 
@@ -113,8 +113,8 @@ python main.py tasks tag <task_id> -a <contact_id> -A <org_id> -r <contact_id> -
 
 ## Your Task
 
-1. **Start by running init**: `cd /home/seb/sites/alive-cli/commands && uv run python main.py init`
-2. Show the user their latest 5 notes by running `cd /home/seb/sites/alive-cli/commands && uv run python main.py notes list -n 5`
+1. **Start by running init**: `uv run python main.py init`
+2. Show the user their latest 5 notes by running `uv run python main.py notes list -n 5`
 3. Ask the user which note (if any) they would like to add a comment about or what new note they would like to create
 4. **ALWAYS ensure all notes are properly tagged with contacts and organizations**
 
