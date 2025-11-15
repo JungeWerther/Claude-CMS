@@ -19,6 +19,7 @@ from models.contact_note import ContactDB, NoteDB
 from models.task import TaskDB
 from notes import notes
 from organizations import organizations
+from services.base_service import is_remote_mode
 from tasks import tasks
 
 
@@ -33,33 +34,129 @@ def init():
     """Initialize context: show 7-day calendar, 5 urgent tasks, and top contacts."""
     init_db()
 
-    with get_db_session() as session:
-        now = datetime.utcnow()
+    now = datetime.utcnow()
 
-        # Display 7-day calendar
-        click.echo("\n" + "=" * 80)
-        click.echo("📅 THIS WEEK")
-        click.echo("=" * 80 + "\n")
+    # Use remote mode if available
+    if is_remote_mode():
+        _init_remote(now)
+    else:
+        _init_local(now)
 
-        days = [
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-            "Sunday",
-        ]
-        for i in range(7):
-            date = now + timedelta(days=i)
-            day_name = days[date.weekday()]
-            date_str = date.strftime("%Y-%m-%d")
 
-            # Check if this is today
-            if i == 0:
-                click.echo(f"  ► {day_name:<10} {date_str}  ← TODAY")
+def _init_remote(now: datetime):
+    """Initialize using remote HTTP service."""
+    from services.http_client import ContactHTTP, TaskHTTP
+
+    # Display 7-day calendar
+    _display_calendar(now)
+
+    # Display 5 most urgent tasks
+    click.echo("\n" + "=" * 80)
+    click.echo("⚠️  TOP 5 URGENT TASKS")
+    click.echo("=" * 80 + "\n")
+
+    urgent_tasks = TaskHTTP.get_urgent_tasks(days=7, sort_by="urgency")[:5]
+
+    if urgent_tasks:
+        for task in urgent_tasks:
+            # Format due date with urgency indicator
+            due_str = task.due_date.strftime("%Y-%m-%d %H:%M")
+            if task.due_date < now:
+                status = "🔴 OVERDUE"
+            elif task.due_date < now + timedelta(days=1):
+                status = "🔴 TODAY"
+            elif task.due_date < now + timedelta(days=3):
+                status = "🟡 SOON"
             else:
-                click.echo(f"    {day_name:<10} {date_str}")
+                status = "🟢 THIS WEEK"
+
+            click.echo(f"  {status:<15} [{task.importance}/10] {task.title}")
+            click.echo(f"  {'':15} Due: {due_str}")
+
+            # Show tagged contacts/orgs if any
+            if task.contacts or task.organizations:
+                tags = []
+                if task.contacts:
+                    tags.append(
+                        f"👥 {', '.join([f'{c.first_name} {c.last_name}'.strip() for c in task.contacts])}"
+                    )
+                if task.organizations:
+                    tags.append(f"🏢 {', '.join([o.name for o in task.organizations])}")
+                click.echo(f"  {'':15} {' | '.join(tags)}")
+
+            click.echo()
+    else:
+        click.echo("  ✅ No urgent tasks!\n")
+
+    # Display top 5 contacts with recent notes
+    click.echo("=" * 80)
+    click.echo("📊 TOP 5 CONTACTS BY NOTE COUNT")
+    click.echo("=" * 80 + "\n")
+
+    top_contacts = ContactHTTP.get_top_contacts(limit=5)
+
+    if top_contacts:
+        for contact, note_count in top_contacts:
+            click.echo(
+                f"  👤 {contact.first_name} {contact.last_name} (ID: {contact.id}) - {note_count} note(s)"
+            )
+
+            # Get notes for this contact
+            from services.http_client import NoteHTTP
+
+            notes_result, error = NoteHTTP.list_notes(limit=3, contact_id=contact.id)
+
+            if notes_result:
+                for note in notes_result:
+                    created = note.created_at.strftime("%Y-%m-%d")
+                    preview = (
+                        note.content[:60] + "..."
+                        if len(note.content) > 60
+                        else note.content
+                    )
+                    click.echo(f"     • [{created}] {note.title}")
+                    click.echo(f"       {preview}")
+            else:
+                click.echo("     (No notes)")
+            click.echo()
+    else:
+        click.echo("  No contacts found.\n")
+
+    click.echo("=" * 80 + "\n")
+
+
+def _display_calendar(now: datetime):
+    """Display 7-day calendar."""
+    click.echo("\n" + "=" * 80)
+    click.echo("📅 THIS WEEK")
+    click.echo("=" * 80 + "\n")
+
+    days = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ]
+    for i in range(7):
+        date = now + timedelta(days=i)
+        day_name = days[date.weekday()]
+        date_str = date.strftime("%Y-%m-%d")
+
+        # Check if this is today
+        if i == 0:
+            click.echo(f"  ► {day_name:<10} {date_str}  ← TODAY")
+        else:
+            click.echo(f"    {day_name:<10} {date_str}")
+
+
+def _init_local(now: datetime):
+    """Initialize using local database."""
+    with get_db_session() as session:
+        # Display 7-day calendar
+        _display_calendar(now)
 
         # Display 5 most urgent tasks
         click.echo("\n" + "=" * 80)
